@@ -347,9 +347,11 @@ def get_live_risk_zones():
             "susceptibility_score": round(susc_score, 2),
             "early_warning_level": alert_lvl,
             "risk_score": comb_score,
-            "risk_level": risk_level,
-            "potential_impact": [f"Landslide vulnerability {comb_score}%", f"Rainfall {loc['rain']} mm/hr"],
-            "key_drivers": [f"Slope {loc['slope']}°", f"Elevation {loc['elev']}m"],
+            "potential_impact": [
+                f"Active Vulnerability: {comb_score}% ({risk_level} Risk)",
+                f"Rainfall Trigger: {loc['rain']} mm/hr (48h: {loc['rain48']} mm)",
+                f"Slope destabilization alert along {loc['name']}"
+            ],
             "radius": 3500
         })
 

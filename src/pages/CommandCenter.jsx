@@ -74,14 +74,27 @@ export default function CommandCenter() {
       const pred = predictions[idx] || predictions.find(p => Math.abs(p.latitude - zone.latitude) < 0.1);
       if (!pred) return zone;
 
+      const currentScore = pred.combined_score !== undefined ? pred.combined_score : zone.risk_score;
+      const currentLevel = pred.risk_level || zone.risk_level;
+      const dynamicImpacts = [
+        `Active Vulnerability: ${currentScore}% (${currentLevel} Risk)`,
+        `Rainfall Trigger: ${currentWeather.current_rain_mm_hr} mm/hr (48h: ${currentWeather.rain_48h_mm} mm)`,
+        currentLevel === 'Critical'
+          ? `Severe slope rupture and road blockage along ${zone.name || 'corridor'}`
+          : currentLevel === 'High'
+          ? `Debris flow & rock displacement alert along ${zone.name || 'corridor'}`
+          : `Stable hillside; minor surface drainage overflow`
+      ];
+
       return {
         ...zone,
-        risk_level: pred.risk_level || zone.risk_level,
-        risk_score: pred.combined_score !== undefined ? pred.combined_score : zone.risk_score,
+        risk_level: currentLevel,
+        risk_score: currentScore,
+        potential_impact: dynamicImpacts,
         current_rain_mm_hr: currentWeather.current_rain_mm_hr,
         rain_48h_mm: currentWeather.rain_48h_mm,
         soil_moisture_pct: currentWeather.soil_moisture_pct,
-        lastMLStatus: pred.status || `${pred.risk_level} (${pred.combined_score}%)`
+        lastMLStatus: pred.status || `${currentLevel} (${currentScore}%)`
       };
     });
 

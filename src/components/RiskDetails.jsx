@@ -165,13 +165,31 @@ export default function RiskDetails({ zone, onClose, onEvacuate, isCalculatingRo
         {/* Potential Impact */}
         <div>
           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Potential Impact</h3>
-          <ul className="space-y-1.5">
-            {(zone.potential_impact || ['Hillside highway blockage', 'Risk to nearby settlements']).map((impact, idx) => (
-              <li key={idx} className="text-xs text-gray-700 flex items-start gap-1.5">
-                <ShieldAlert size={12} className="text-red-500 shrink-0 mt-0.5" />
-                <span>{impact}</span>
-              </li>
-            ))}
+          <ul className="space-y-2">
+            <li className="text-xs text-gray-700 flex items-start gap-1.5">
+              <ShieldAlert size={13} className="text-red-500 shrink-0 mt-0.5" />
+              <span>
+                <b className="text-gray-900">Active Vulnerability:</b> {zone.risk_score}% ({zone.risk_level} Hazard Level)
+              </span>
+            </li>
+            <li className="text-xs text-gray-700 flex items-start gap-1.5">
+              <ShieldAlert size={13} className="text-blue-500 shrink-0 mt-0.5" />
+              <span>
+                <b className="text-gray-900">Weather Trigger:</b> {currentRainVal} mm/hr rain (48h: {rain48hVal} mm, {moistureVal}% saturation)
+              </span>
+            </li>
+            <li className="text-xs text-gray-700 flex items-start gap-1.5">
+              <ShieldAlert size={13} className={zone.risk_level === 'Critical' ? 'text-red-600 shrink-0 mt-0.5' : 'text-amber-500 shrink-0 mt-0.5'} />
+              <span>
+                <b className="text-gray-900">Infrastructure Impact:</b> {
+                  zone.risk_level === 'Critical' 
+                    ? `Severe slope failure and road blockage along ${zone.name || 'corridor'}` 
+                    : zone.risk_level === 'High' 
+                    ? `Debris flow & rock displacement alert along ${zone.name || 'corridor'}` 
+                    : `Stable hillside; minor surface drainage overflow`
+                }
+              </span>
+            </li>
           </ul>
         </div>
 
