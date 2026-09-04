@@ -12,7 +12,7 @@ import {
   HISTORICAL_LANDSLIDES,
   PREDEFINED_LOCATIONS
 } from '../data/mockSusceptibilityData';
-export const ML_API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+export const ML_API = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
 
 /**
  * Fetch live calculated risk zones directly from Python FastAPI ML Backend
