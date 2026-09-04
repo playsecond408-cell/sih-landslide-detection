@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 
 // ONLY using 100% real, verified Windy Webcams that physically exist in/near North East India.
 // There are currently only 2 public cameras within a 250km radius of the entire region.
@@ -27,7 +27,18 @@ export default function LiveMonitoringPanel() {
             </span>
             <span className="text-white font-bold text-[10px] tracking-widest uppercase">REAL PUBLIC CCTV FEEDS</span>
           </div>
-          <span className="text-gray-500 text-[10px] font-mono">2 / 8 CAMERAS ONLINE</span>
+          <div className="flex items-center gap-3">
+            <a 
+              href="/rockfall_detector.html" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-[10px] bg-red-600/90 hover:bg-red-500 text-white font-bold px-2 py-0.5 rounded transition-colors flex items-center gap-1"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse"></span>
+              AI Rockfall Detector
+            </a>
+            <span className="text-gray-500 text-[10px] font-mono">2 / 8 CAMERAS ONLINE</span>
+          </div>
         </div>
         
         <div className="flex-1 p-2 overflow-x-auto flex items-center gap-2">

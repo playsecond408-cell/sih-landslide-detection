@@ -1,7 +1,7 @@
 import os
 import joblib
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -496,3 +496,20 @@ def broadcast_5g_prose_offgrid_alert(req: ProSeBroadcastRequest):
             "timestamp": "IMMUTABLE EMERGENCY BROADCAST"
         }
     }
+
+# Proxy Roboflow YOLO11 rockfall detection requests to bypass browser CORS
+@app.post("/api/detect", tags=["Vision AI"])
+async def detect_rockfall(request: Request, model: str = "rockfall-zc0ap-smkwd/2", api_key: str = "qxLi53LWTad7uwORk5NZ", confidence: int = 15, overlap: int = 40):
+    import urllib.request
+    body = await request.body()
+    roboflow_url = f"https://detect.roboflow.com/{model}?api_key={api_key}&confidence={confidence}&overlap={overlap}"
+    try:
+        req = urllib.request.Request(
+            roboflow_url,
+            data=body,
+            headers={'Content-Type': 'application/x-www-form-urlencoded'}
+        )
+        with urllib.request.urlopen(req, timeout=12) as response:
+            return Response(content=response.read(), media_type="application/json")
+    except Exception as e:
+        return {"error": str(e), "predictions": []}

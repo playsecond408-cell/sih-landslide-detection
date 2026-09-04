@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rockfall AI Detection | Real-Time Video</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      background-color: #030712;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    #videoWrapper {
+      position: relative;
+      display: inline-block;
+      line-height: 0;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    #videoElement {
+      display: block;
+      max-height: 94vh;
+      max-width: 95vw;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      background: #000;
+    }
+    #overlayCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .hud-controls {
+      opacity: 0;
+      transition: opacity 0.25s ease-in-out;
+    }
+    #videoWrapper:hover .hud-controls {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="select-none">
+
+  <!-- Centered Video & Detection Canvas Container -->
+  <div id="videoWrapper" class="group">
+    
+    <!-- Looping Rockfall Video -->
+    <video
+      id="videoElement"
+      src="rockfall.mp4"
+      autoplay
+      loop
+      muted
+      playsinline
+      preload="auto"
+    ></video>
+
+    <!-- Overlay Canvas for Detection Bounding Boxes -->
+    <canvas id="overlayCanvas"></canvas>
+
+    <!-- Hidden Capture Canvas -->
+    <canvas id="captureCanvas" class="hidden"></canvas>
+
+    <!-- Minimal Floating HUD Controls (Fades in on Hover) -->
+    <div class="hud-controls absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-auto">
+      <!-- Status Badge & Model -->
+      <div class="flex items-center gap-2 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-800/80 text-xs text-slate-300 font-mono shadow-lg">
+        <span id="pulseDot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="modelLabel">rockfall-zc0ap-smkwd/2</span>
+        <span class="text-slate-500">•</span>
+        <span id="fpsTag" class="text-emerald-400">6 FPS</span>
+        <span class="text-slate-500">•</span>
+        <span class="text-blue-400">LOOPING</span>
+      </div>
+
+      <!-- Playback Controls -->
+      <div class="flex items-center gap-1.5 bg-slate-950/80 backdrop-blur-md p-1 rounded-full border border-slate-800/80 shadow-lg">
+        <button id="playPauseBtn" class="p-2 rounded-full hover:bg-slate-800 text-slate-300 hover:text-white transition" title="Play/Pause">
+          <i data-lucide="pause" class="w-4 h-4"></i>
+        </button>
+        <button id="muteBtn" class="p-2 rounded-full hover:bg-slate-800 text-slate-300 hover:text-white transition" title="Mute/Unmute">
+          <i data-lucide="volume-x" class="w-4 h-4"></i>
+        </button>
+        <button id="fullscreenBtn" class="p-2 rounded-full hover:bg-slate-800 text-slate-300 hover:text-white transition" title="Fullscreen">
+          <i data-lucide="maximize" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Hazard Pulse Glow on Border -->
+    <div id="hazardGlow" class="pointer-events-none absolute inset-0 border-2 border-rose-500/0 transition-all duration-300 rounded-xl"></div>
+  </div>
+
+  <!-- Audio Context Alarm -->
+  <script>
+    const AudioAlarm = {
+      ctx: null,
+      beep() {
+        try {
+          if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(860, this.ctx.currentTime);
+          gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.18);
+        } catch (e) {}
+      }
+    };
+  </script>
+
+  <!-- Real-Time Rock Detection Logic -->
+  <script>
+    // Configuration Locked to User Specifications
+    const CONFIG = {
+      apiKey: "qxLi53LWTad7uwORk5NZ",
+      modelId: "rockfall-zc0ap-smkwd/2", // User's requested rockfall model
+      fallbackModel: "rock-detection-9kgmi/1", // Rock & Boulder model
+      confidence: 0.20, // 20%
+      overlap: 0.40,    // 40%
+      fps: 6,           // 6 FPS
+      audioAlerts: true
+    };
+
+    const video = document.getElementById('videoElement');
+    const overlayCanvas = document.getElementById('overlayCanvas');
+    const captureCanvas = document.getElementById('captureCanvas');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const muteBtn = document.getElementById('muteBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const hazardGlow = document.getElementById('hazardGlow');
+    const fpsTag = document.getElementById('fpsTag');
+    const pulseDot = document.getElementById('pulseDot');
+
+    lucide.createIcons();
+
+    // -------------------------------------------------------------
+    // Continuous Infinite Video Looping
+    // -------------------------------------------------------------
+    video.loop = true;
+
+    video.addEventListener('ended', () => {
+      video.currentTime = 0;
+      video.play().catch(() => {});
+    });
+
+    // -------------------------------------------------------------
+    // Pixel-Perfect Canvas Sizing (Matches Video Element 1:1)
+    // -------------------------------------------------------------
+    function resizeOverlay() {
+      if (video.clientWidth && video.clientHeight) {
+        overlayCanvas.width = video.clientWidth;
+        overlayCanvas.height = video.clientHeight;
+      }
+    }
+
+    video.addEventListener('loadedmetadata', resizeOverlay);
+    window.addEventListener('resize', resizeOverlay);
+
+    // -------------------------------------------------------------
+    // Bounding Box Renderer (Pixel-Exact Position)
+    // -------------------------------------------------------------
+    function drawDetections(predictions, imgWidth, imgHeight) {
+      resizeOverlay();
+      const ctx = overlayCanvas.getContext('2d');
+      ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+      if (!predictions || predictions.length === 0) {
+        hazardGlow.style.borderColor = 'rgba(239, 68, 68, 0)';
+        return;
+      }
+
+      // Flash border glow when rock is detected
+      hazardGlow.style.borderColor = 'rgba(239, 68, 68, 0.8)';
+
+      const scaleX = overlayCanvas.width / imgWidth;
+      const scaleY = overlayCanvas.height / imgHeight;
+
+      predictions.forEach((pred) => {
+        // Roboflow center coordinates to top-left corner
+        const x = (pred.x - pred.width / 2) * scaleX;
+        const y = (pred.y - pred.height / 2) * scaleY;
+        const w = pred.width * scaleX;
+        const h = pred.height * scaleY;
+        const conf = Math.round(pred.confidence * 100);
+
+        // Styling
+        ctx.strokeStyle = '#ef4444'; // Vivid red
+        ctx.lineWidth = 2.5;
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.18)';
+
+        // Rounded Bounding Box
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(x, y, w, h, 4);
+        } else {
+          ctx.rect(x, y, w, h);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Corner HUD Brackets
+        const corner = Math.min(w * 0.22, h * 0.22, 14);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+
+        // Top-Left
+        ctx.beginPath();
+        ctx.moveTo(x, y + corner);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + corner, y);
+        ctx.stroke();
+
+        // Top-Right
+        ctx.beginPath();
+        ctx.moveTo(x + w - corner, y);
+        ctx.lineTo(x + w, y);
+        ctx.lineTo(x + w, y + corner);
+        ctx.stroke();
+
+        // Bottom-Left
+        ctx.beginPath();
+        ctx.moveTo(x, y + h - corner);
+        ctx.lineTo(x, y + h);
+        ctx.lineTo(x + corner, y + h);
+        ctx.stroke();
+
+        // Bottom-Right
+        ctx.beginPath();
+        ctx.moveTo(x + w - corner, y + h);
+        ctx.lineTo(x + w, y + h);
+        ctx.lineTo(x + w, y + h - corner);
+        ctx.stroke();
+
+        // Downward Falling Trajectory Vector Indicator
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        ctx.strokeStyle = '#fca5a5';
+        ctx.fillStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, y + h);
+        ctx.lineTo(cx, y + h + 12);
+        ctx.stroke();
+        // Arrow tip
+        ctx.beginPath();
+        ctx.moveTo(cx - 4, y + h + 7);
+        ctx.lineTo(cx, y + h + 13);
+        ctx.lineTo(cx + 4, y + h + 7);
+        ctx.fill();
+
+        // Label Badge (e.g. "ROCK 88%")
+        const rawClass = (pred.class || 'ROCK').toUpperCase();
+        const displayLabel = rawClass.includes('STONE') || rawClass.includes('ROCK') ? `ROCK ${conf}%` : `${rawClass} ${conf}%`;
+
+        ctx.font = 'bold 12px Inter, system-ui, sans-serif';
+        const txtWidth = ctx.measureText(displayLabel).width;
+        const badgeW = txtWidth + 14;
+        const badgeH = 20;
+        const badgeY = Math.max(0, y - badgeH - 3);
+
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(x, badgeY, badgeW, badgeH, 3);
+        } else {
+          ctx.rect(x, badgeY, badgeW, badgeH);
+        }
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(displayLabel, x + 7, badgeY + 14);
+      });
+    }
+
+    // -------------------------------------------------------------
+    // Real-Time Roboflow YOLO11 Detection Loop (6 FPS)
+    // -------------------------------------------------------------
+    let isProcessing = false;
+
+    async function detectFrame() {
+      if (isProcessing || video.paused || video.readyState < 2) return;
+
+      isProcessing = true;
+      const startTime = performance.now();
+
+      try {
+        const vW = video.videoWidth || 360;
+        const vH = video.videoHeight || 640;
+
+        captureCanvas.width = vW;
+        captureCanvas.height = vH;
+        const capCtx = captureCanvas.getContext('2d');
+        capCtx.drawImage(video, 0, 0, vW, vH);
+
+        const base64Data = captureCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+        const confParam = Math.round(CONFIG.confidence * 100);
+        const overlapParam = Math.round(CONFIG.overlap * 100);
+
+        // Use live Render backend proxy or local server
+        const backendOrigin = (window.location.hostname === 'localhost' && window.location.port === '8080')
+          ? ''
+          : 'https://sih-landslide-detection.onrender.com';
+
+        let url = `${backendOrigin}/api/detect?model=${encodeURIComponent(CONFIG.modelId)}&api_key=${encodeURIComponent(CONFIG.apiKey)}&confidence=${confParam}&overlap=${overlapParam}`;
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: base64Data
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          let predictions = data.predictions || [];
+
+          // If primary model has 0 predictions on this frame, query fallback rock detection
+          if (predictions.length === 0 && CONFIG.fallbackModel) {
+            let fbUrl = `${backendOrigin}/api/detect?model=${encodeURIComponent(CONFIG.fallbackModel)}&api_key=${encodeURIComponent(CONFIG.apiKey)}&confidence=${confParam}&overlap=${overlapParam}`;
+            try {
+              const fbRes = await fetch(fbUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: base64Data });
+              if (fbRes.ok) {
+                const fbData = await fbRes.json();
+                if (fbData.predictions && fbData.predictions.length > 0) {
+                  predictions = fbData.predictions;
+                }
+              }
+            } catch (e) {}
+          }
+
+          drawDetections(predictions, data.image?.width || vW, data.image?.height || vH);
+
+          if (predictions.length > 0 && CONFIG.audioAlerts) {
+            AudioAlarm.beep();
+          }
+
+          const elapsed = Math.round(performance.now() - startTime);
+          const currentFPS = elapsed > 0 ? Math.min(CONFIG.fps, Math.round(1000 / elapsed)) : CONFIG.fps;
+          fpsTag.textContent = `${currentFPS} FPS`;
+          pulseDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+        }
+      } catch (err) {
+        pulseDot.className = "w-2 h-2 rounded-full bg-amber-400";
+      } finally {
+        isProcessing = false;
+      }
+    }
+
+    // Run at 6 FPS (166 ms interval)
+    setInterval(detectFrame, Math.round(1000 / CONFIG.fps));
+
+    // -------------------------------------------------------------
+    // Controls
+    // -------------------------------------------------------------
+    playPauseBtn.addEventListener('click', () => {
+      if (video.paused) {
+        video.play();
+        playPauseBtn.innerHTML = `<i data-lucide="pause" class="w-4 h-4"></i>`;
+      } else {
+        video.pause();
+        playPauseBtn.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i>`;
+      }
+      lucide.createIcons();
+    });
+
+    muteBtn.addEventListener('click', () => {
+      video.muted = !video.muted;
+      muteBtn.innerHTML = video.muted
+        ? `<i data-lucide="volume-x" class="w-4 h-4"></i>`
+        : `<i data-lucide="volume-2" class="w-4 h-4 text-emerald-400"></i>`;
+      lucide.createIcons();
+    });
+
+    fullscreenBtn.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    // Auto-play on load
+    window.addEventListener('DOMContentLoaded', () => {
+      video.play().catch(() => {});
+      resizeOverlay();
+    });
+  </script>
+</body>
+</html>
