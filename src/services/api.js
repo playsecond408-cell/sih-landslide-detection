@@ -124,10 +124,10 @@ export const batchPredictWarnings = async (zones, globalWeather) => {
     elevation_m:        z.elevation_m   ?? 500.0,
     land_use_code:      z.land_use_code ?? 2,
     soil_code:          z.soil_code     ?? 3,
-    current_rain_mm_hr: z.current_rain_mm_hr ?? globalWeather.current_rain_mm_hr ?? 20,
-    rain_48h_mm:        z.rain_48h_mm ?? globalWeather.rain_48h_mm ?? 80,
-    soil_moisture_pct:  z.soil_moisture_pct ?? globalWeather.soil_moisture_pct ?? 60,
-    forecast_severity:  globalWeather.forecast_severity ?? 1,
+    current_rain_mm_hr: globalWeather?.current_rain_mm_hr !== undefined ? globalWeather.current_rain_mm_hr : (z.current_rain_mm_hr ?? 20),
+    rain_48h_mm:        globalWeather?.rain_48h_mm !== undefined ? globalWeather.rain_48h_mm : (z.rain_48h_mm ?? 80),
+    soil_moisture_pct:  globalWeather?.soil_moisture_pct !== undefined ? globalWeather.soil_moisture_pct : (z.soil_moisture_pct ?? 60),
+    forecast_severity:  globalWeather?.forecast_severity ?? 1,
   }));
 
   const res = await fetch(`${ML_API}/predict/batch-warning`, {

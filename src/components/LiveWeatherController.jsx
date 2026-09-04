@@ -28,6 +28,37 @@ export default function LiveWeatherController({ riskZones, onUpdatePredictions }
         }
       } catch (err) {
         console.warn("ML Batch API error (using local state fallback):", err);
+        if (isMounted && typeof onUpdatePredictions === 'function') {
+          const fallbackPredictions = riskZones.map(z => {
+            const slopeNorm = Math.min(1, Math.max(0, ((z.slope_degrees || 30) - 3) / 69));
+            const elevNorm = Math.min(1, Math.max(0, ((z.elevation_m || 500) - 50) / 2950));
+            const lulcRisk = (z.land_use_code || 2) / 4;
+            const soilRisk = (z.soil_code || 3) / 4;
+            const spatialRisk = Math.exp(-(((z.latitude || 25.5) - 25.3) ** 2 / 2.0 + (((z.longitude || 91.8) - 91.7) ** 2 / 4.0)));
+            const suscProb = Math.min(100, Math.max(5, (slopeNorm * 0.35 + soilRisk * 0.25 + lulcRisk * 0.20 + elevNorm * 0.10 + spatialRisk * 0.10) * 100));
+
+            const rainNorm = (weather.current_rain_mm_hr || 20) / 150;
+            const rain48Norm = (weather.rain_48h_mm || 80) / 600;
+            const moistNorm = (weather.soil_moisture_pct || 60) / 100;
+            const forecastNorm = (weather.forecast_severity || 1) / 3;
+            const triggerScore = Math.min(1, Math.max(0, rain48Norm * 0.40 + moistNorm * 0.25 + rainNorm * 0.25 + forecastNorm * 0.10));
+            const alertLevel = triggerScore >= 0.75 ? 3 : triggerScore >= 0.50 ? 2 : triggerScore >= 0.25 ? 1 : 0;
+
+            const combinedScore = Math.round(suscProb * 0.40 + (alertLevel / 3.0 * 100.0) * 0.60);
+            const level = combinedScore >= 75 ? "Critical" : combinedScore >= 55 ? "High" : combinedScore >= 35 ? "Moderate" : "Low";
+
+            return {
+              latitude: z.latitude,
+              longitude: z.longitude,
+              susc_prob: Math.round(suscProb),
+              alert_level: alertLevel,
+              combined_score: combinedScore,
+              risk_level: level,
+              status: `${level} (${combinedScore}%)`
+            };
+          });
+          onUpdatePredictions(fallbackPredictions, weather);
+        }
       }
     };
 
