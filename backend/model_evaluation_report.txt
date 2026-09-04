@@ -1,0 +1,85 @@
+=================================================================
+  NER LANDSLIDE PREDICTION -- MODEL EVALUATION REPORT
+=================================================================
+
+-----------------------------------------------------------------
+  MODEL 1 : Susceptibility Classifier  (Random Forest)
+  Task     : Binary -- Is this location susceptible? (0=No / 1=Yes)
+-----------------------------------------------------------------
+  Test set size  : 1000 samples
+
+  Accuracy       : 0.9410  (94.10%)
+  Precision      : 0.7652
+  Recall         : 0.7333
+  F1 Score       : 0.7489
+  ROC-AUC        : 0.9723
+  Cross-Val F1   : 0.7026 +/- 0.0151  (5-fold)
+
+  Confusion Matrix  (rows=Actual, cols=Predicted):
+                    Pred:Safe    Pred:Susceptible
+  Actual:Safe            853              27
+  Actual:Susceptible      32              88
+
+  Classification Report:
+                  precision    recall  f1-score   support
+    
+            Safe       0.96      0.97      0.97       880
+     Susceptible       0.77      0.73      0.75       120
+    
+        accuracy                           0.94      1000
+       macro avg       0.86      0.85      0.86      1000
+    weighted avg       0.94      0.94      0.94      1000
+    
+
+  Feature Importances (Random Forest):
+    soil_code              0.2653  #############
+    land_use_code          0.2323  ###########
+    slope_degrees          0.1912  #########
+    latitude               0.1169  #####
+    elevation_m            0.1023  #####
+    longitude              0.0920  ####
+
+-----------------------------------------------------------------
+  MODEL 2 : Early-Warning Classifier  (Decision Tree)
+  Task     : Multi-class -- Alert level (0=Safe 1=Watch 2=Warning 3=Critical)
+-----------------------------------------------------------------
+  Test set size  : 1000 samples
+
+  Accuracy       : 0.8100  (81.00%)
+  Precision (wt) : 0.8096
+  Recall (wt)    : 0.8100
+  F1 (weighted)  : 0.8097
+  F1 (macro)     : 0.7314
+  Cross-Val F1   : 0.8155 +/- 0.0105  (5-fold, weighted)
+
+  Confusion Matrix  (rows=Actual, cols=Predicted):
+               Safe  Watch  Warn  Crit
+  Actual Safe      308     70      0      0
+  Actual Watch      67    434     23      0
+  Actual Warn        0     27     66      1
+  Actual Crit        0      0      2      2
+
+  Classification Report:
+                  precision    recall  f1-score   support
+    
+            Safe       0.82      0.81      0.82       378
+           Watch       0.82      0.83      0.82       524
+         Warning       0.73      0.70      0.71        94
+        Critical       0.67      0.50      0.57         4
+    
+        accuracy                           0.81      1000
+       macro avg       0.76      0.71      0.73      1000
+    weighted avg       0.81      0.81      0.81      1000
+    
+
+  Feature Importances (Decision Tree):
+    rain_48h_mm              0.3409  #################
+    soil_moisture_pct        0.3221  ################
+    current_rain_mm_hr       0.2115  ##########
+    forecast_severity        0.0973  ####
+    longitude                0.0159  
+    latitude                 0.0123  
+
+=================================================================
+  END OF REPORT
+=================================================================

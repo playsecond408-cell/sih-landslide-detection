@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+:root {
+  --color-risk-low: #22c55e; /* green-500 */
+  --color-risk-moderate: #eab308; /* yellow-500 */
+  --color-risk-high: #f97316; /* orange-500 */
+  --color-risk-critical: #ef4444; /* red-500 */
+}
+
+body {
+  font-family: 'Inter', 'Roboto', sans-serif;
+  background-color: #f8fafc;
+  color: #1e293b;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* App takes full height, no global scroll */
+}
+
+/* Leaflet map overrides */
+.leaflet-container {
+  font-family: 'Inter', 'Roboto', sans-serif;
+}
