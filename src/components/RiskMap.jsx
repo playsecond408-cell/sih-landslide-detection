@@ -93,17 +93,26 @@ export default function RiskMap({ riskZones, roadSegments, communityObservations
             <LayerGroup>
               {riskZones.map(zone => {
                 const isSelected = selectedZone && selectedZone.id === zone.id;
+                const dynamicRadius = zone.risk_level === 'Critical' 
+                  ? 5500 
+                  : zone.risk_level === 'High' 
+                  ? 4200 
+                  : zone.risk_level === 'Moderate' 
+                  ? 3000 
+                  : 2000;
+
                 return (
                   <Circle
-                    key={zone.id}
+                    key={`${zone.id}-${zone.risk_level}-${zone.risk_score}`}
                     center={[zone.latitude, zone.longitude]}
                     pathOptions={{
                       color: getRiskColor(zone.risk_level),
                       fillColor: getRiskColor(zone.risk_level),
-                      fillOpacity: isSelected ? 0.6 : 0.35,
-                      weight: isSelected ? 4 : 2
+                      fillOpacity: isSelected ? 0.65 : zone.risk_level === 'Critical' ? 0.45 : 0.30,
+                      weight: isSelected ? 4 : zone.risk_level === 'Critical' ? 3 : 1.5,
+                      dashArray: zone.risk_level === 'Critical' ? '6, 6' : undefined
                     }}
-                    radius={zone.radius || 3000}
+                    radius={dynamicRadius}
                     eventHandlers={{
                       click: () => onZoneClick(zone),
                     }}

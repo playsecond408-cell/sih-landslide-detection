@@ -78,11 +78,19 @@ export default function CommandCenter() {
         ...zone,
         risk_level: pred.risk_level || zone.risk_level,
         risk_score: pred.combined_score !== undefined ? pred.combined_score : zone.risk_score,
+        current_rain_mm_hr: currentWeather.current_rain_mm_hr,
+        rain_48h_mm: currentWeather.rain_48h_mm,
+        soil_moisture_pct: currentWeather.soil_moisture_pct,
         lastMLStatus: pred.status || `${pred.risk_level} (${pred.combined_score}%)`
       };
     });
 
     setRiskZones(updatedZones);
+
+    setSelectedZone(prev => {
+      if (!prev) return null;
+      return updatedZones.find(z => z.id === prev.id) || prev;
+    });
 
     // Automatically recalculate Summary Statistics based on Live ML predictions
     const criticalCount = updatedZones.filter(z => z.risk_level === 'Critical').length;
