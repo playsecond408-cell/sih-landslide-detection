@@ -174,6 +174,8 @@ Open **`http://localhost:8080/rockfall_detector.html`** to view real-time rockfa
 ##  in no network area
 ## -> 5g proximety service 
 ## -> LoRa mesh module 
- ![5g ProSe](https://www.researchgate.net/publication/322224202/figure/fig1/AS:11431281431223921@1746789411743/Architecture-and-logical-interfaces-for-proximity-services-ProSe-PC-Interface-between.tif)
+ ![LoRa]<img width="850" height="278" alt="LoRa-communication-network-which-is-made-up-of-sensor-nodes-gateway-network-and" src="https://github.com/user-attachments/assets/0f986ea3-bcd9-4f17-a1e8-856b9542dea0" />
+
  ## loRa Mesh Module
- ![LoRa](https://www.researchgate.net/profile/Wan-Rahiman/publication/354428586/figure/fig3/AS:1065607923503105@1631072135126/LoRa-communication-network-which-is-made-up-of-sensor-nodes-gateway-network-and.jpg)
+ ![5gProSe]<img width="850" height="470" alt="Architecture-and-logical-interfaces-for-proximity-services-ProSe-PC-Interface-between" src="https://github.com/user-attachments/assets/16418dfb-61fe-4492-ba7a-c12f7181d6bf" />
+
