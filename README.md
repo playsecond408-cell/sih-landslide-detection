@@ -170,6 +170,10 @@ Open **`http://localhost:8080/rockfall_detector.html`** to view real-time rockfa
 | `POST` | `/api/alerts/5g-prose-broadcast`| Direct device-to-device mesh emergency broadcast |
 
 ---
-
-## 📄 License
-This project was developed for the Smart India Hackathon (SIH) disaster management initiative.
+# Post communication methods
+##  in no network area
+## -> 5g proximety service 
+## -> LoRa mesh module 
+ ![5g ProSe](https://www.researchgate.net/publication/322224202/figure/fig1/AS:11431281431223921@1746789411743/Architecture-and-logical-interfaces-for-proximity-services-ProSe-PC-Interface-between.tif)
+ ## loRa Mesh Module
+ ![LoRa](https://www.researchgate.net/profile/Wan-Rahiman/publication/354428586/figure/fig3/AS:1065607923503105@1631072135126/LoRa-communication-network-which-is-made-up-of-sensor-nodes-gateway-network-and.jpg)
